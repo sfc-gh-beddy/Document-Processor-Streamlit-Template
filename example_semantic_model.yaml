@@ -1,0 +1,174 @@
+# =============================================================================
+# EXAMPLE SEMANTIC MODEL FOR CORTEX ANALYST
+# =============================================================================
+# 
+# CAN CREATE A SEMANTIC MODEL THROUGH THE CORTEX ANALYST UI RATHER THAN THIS FILE
+#
+# Instructions for customization:
+# 1. Replace 'your_domain' with your actual domain name
+# 2. Update table references to match your database structure
+# 3. Modify dimensions and facts to match your data fields
+# 4. Upload this file to your Snowflake stage
+# 5. Update SEMANTIC_MODEL_FILE path in config.py
+#
+# =============================================================================
+
+name: your_domain_model  # CUSTOMIZE: Replace with your domain name
+
+tables:
+  # Main data table - customize based on your flattened data structure
+  - name: YOUR_MAIN_DATA_TABLE  # CUSTOMIZE: Replace with your actual table name
+    base_table:
+      database: YOUR_DATABASE_NAME    # CUSTOMIZE: Your database
+      schema: YOUR_SCHEMA_NAME        # CUSTOMIZE: Your schema
+      table: YOUR_FLATTENED_TABLE     # CUSTOMIZE: Your main data table
+    
+    # Dimensions - categorical/descriptive fields
+    dimensions:
+      - name: FIELD_1_NAME            # CUSTOMIZE: Your field name
+        expr: FIELD_1_NAME            # CUSTOMIZE: Column expression
+        data_type: VARCHAR(255)       # CUSTOMIZE: Data type
+        sample_values:                # CUSTOMIZE: Add sample values
+          - "Sample Value 1"
+          - "Sample Value 2"
+          - "Sample Value 3"
+        description: Description of your first field  # CUSTOMIZE
+        synonyms:                     # CUSTOMIZE: Add synonyms for natural language
+          - alternative_name_1
+          - alternative_name_2
+          - category
+          - type
+          
+      - name: FIELD_2_NAME            # CUSTOMIZE: Your second field
+        expr: FIELD_2_NAME
+        data_type: VARCHAR(255)
+        sample_values:
+          - "Sample A"
+          - "Sample B"
+          - "Sample C"
+        description: Description of your second field  # CUSTOMIZE
+        synonyms:
+          - region
+          - area
+          - location
+          - zone
+    
+    # Facts - numeric/measurable fields
+    facts:
+      - name: NUMERIC_FIELD_1         # CUSTOMIZE: Your numeric field
+        expr: NUMERIC_FIELD_1
+        data_type: NUMBER(38,0)
+        sample_values:
+          - '100'
+          - '250'
+          - '500'
+        description: Description of your first numeric field  # CUSTOMIZE
+        synonyms:
+          - count
+          - total
+          - amount
+          - quantity
+          
+      - name: NUMERIC_FIELD_2         # CUSTOMIZE: Your second numeric field
+        expr: NUMERIC_FIELD_2
+        data_type: NUMBER(38,0)
+        sample_values:
+          - '1500'
+          - '2000'
+          - '3000'
+        description: Description of your second numeric field  # CUSTOMIZE
+        synonyms:
+          - cumulative
+          - running_total
+          - sum
+          - aggregate
+          
+      - name: RATE_FIELD              # CUSTOMIZE: Rate or percentage field
+        expr: RATE_FIELD
+        data_type: NUMBER(10,2)
+        sample_values:
+          - '15.5'
+          - '23.7'
+          - '8.2'
+        description: Description of your rate field  # CUSTOMIZE
+        synonyms:
+          - rate
+          - percentage
+          - ratio
+          - proportion
+    
+    # Filters - commonly filtered fields
+    filters:
+      - expr: FIELD_1_NAME            # CUSTOMIZE: Your filter field
+        name: Field 1 Filter          # CUSTOMIZE: Filter display name
+
+# Additional tables (if you have multiple data sources)
+  - name: YOUR_AI_EXTRACT_TABLE      # CUSTOMIZE: AI Extract results table
+    base_table:
+      database: YOUR_DATABASE_NAME
+      schema: YOUR_SCHEMA_NAME  
+      table: YOUR_AI_EXTRACT_TABLE
+    
+    dimensions:
+      - name: EXTRACTION_SOURCE       # File source information
+        expr: file_name
+        data_type: VARCHAR(255)
+        description: Source file name for extraction
+        
+      - name: EXTRACTION_TYPE         # Type of document extracted
+        expr: field_1                 # CUSTOMIZE: Map to your extraction field
+        data_type: VARCHAR(255)
+        description: Type or category of extracted document
+    
+    facts:
+      - name: EXTRACTION_COUNT        # Count of extractions
+        expr: COUNT(*)
+        data_type: NUMBER
+        description: Number of extractions performed
+        
+    filters:
+      - expr: extraction_timestamp
+        name: Extraction Date
+
+# =============================================================================
+# EXAMPLE CUSTOMIZATIONS FOR DIFFERENT DOMAINS
+# =============================================================================
+
+# FINANCIAL DOCUMENTS EXAMPLE:
+# name: financial_document_model
+# tables:
+#   - name: FINANCIAL_DATA
+#     dimensions:
+#       - name: DOCUMENT_TYPE (Invoice, Statement, Report)
+#       - name: VENDOR_NAME
+#       - name: ACCOUNT_CATEGORY
+#     facts:
+#       - name: AMOUNT
+#       - name: TAX_AMOUNT
+#       - name: TOTAL_AMOUNT
+
+# HEALTHCARE DOCUMENTS EXAMPLE:
+# name: healthcare_document_model
+# tables:
+#   - name: PATIENT_DATA
+#     dimensions:
+#       - name: PATIENT_ID
+#       - name: DIAGNOSIS_CODE
+#       - name: PROVIDER_NAME
+#     facts:
+#       - name: VISIT_COUNT
+#       - name: TREATMENT_COST
+#       - name: LENGTH_OF_STAY
+
+# LEGAL DOCUMENTS EXAMPLE:
+# name: legal_document_model
+# tables:
+#   - name: CONTRACT_DATA
+#     dimensions:
+#       - name: CONTRACT_TYPE
+#       - name: PARTY_NAME
+#       - name: JURISDICTION
+#     facts:
+#       - name: CONTRACT_VALUE
+#       - name: TERM_LENGTH
+#       - name: PENALTY_AMOUNT
