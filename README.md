@@ -1,274 +1,190 @@
-# 🔬 Document AI Platform Template
+# 🦠 CDC Pertussis Document AI Platform
 
-This is a customizable template for building AI-powered document processing platforms using Snowflake. It provides three core tools for document upload, AI extraction, and natural language data analysis.
+A Streamlit application for processing CDC pertussis surveillance documents using Snowflake's AI capabilities.
 
 ## 🚀 Quick Start
 
-### 1. Prerequisites
+### Prerequisites
 - Snowflake account with Cortex AI enabled
-- Python environment with Streamlit
-- Document AI model trained (or use Snowflake's pre-built models)
+- Documents stored in `ORBIT.DOC_AI.DOC_AI_STAGE`
+- Trained Document AI models available
 
-### 2. Setup Instructions
+### Setup in Snowflake
 
-#### Step 1: Clone and Customize Configuration
-1. Copy all template files to your project directory
-2. Rename `streamlit_app_template.py` to `streamlit_app.py`
-3. Rename page template files (remove `_template` suffix)
-4. Edit `config.py` with your Snowflake configurations
-
-#### Step 2: Configure Your Database
-Update these key settings in `config.py`:
-
-```python
-# Your Snowflake database and schema
-DATABASE_NAME = "YOUR_DATABASE_NAME"
-SCHEMA_NAME = "YOUR_SCHEMA_NAME"
-STAGE_NAME = "YOUR_DATABASE.YOUR_SCHEMA.YOUR_STAGE"
-
-# Your trained document AI model
-DOCUMENT_AI_MODEL = "YOUR_DATABASE.YOUR_SCHEMA.YOUR_MODEL!PREDICT"
-
-# Your semantic model for Cortex Analyst
-SEMANTIC_MODEL_FILE = "@YOUR_DATABASE.YOUR_SCHEMA.YOUR_STAGE/your_model.yaml"
-```
-
-#### Step 3: Customize for Your Domain
-Replace these placeholders throughout `config.py`:
-
-```python
-# Application branding
-APP_TITLE = "Your Document AI Platform"
-DOMAIN_NAME = "Your Domain"  # e.g., "Financial Document Processing"
-DOCUMENT_TYPE = "your document type"  # e.g., "financial reports"
-PRIMARY_USE_CASE = "your use case"  # e.g., "financial data analysis"
-```
-
-#### Step 4: Define Your Extraction Schema
-Update the `DEFAULT_EXTRACTION_SCHEMA` in `config.py` with questions relevant to your documents:
-
-```python
-DEFAULT_EXTRACTION_SCHEMA = {
-    "field_1": "What is the document type?",
-    "field_2": "What is the reporting period?",
-    "field_3": "What are the key metrics?",
-    # Add up to 10 fields specific to your use case
-}
-```
-
-### 3. Required Snowflake Setup
-
-#### Create Database and Schema
+1. **Create Streamlit App:**
 ```sql
-CREATE DATABASE YOUR_DATABASE_NAME;
-USE DATABASE YOUR_DATABASE_NAME;
-CREATE SCHEMA YOUR_SCHEMA_NAME;
-USE SCHEMA YOUR_SCHEMA_NAME;
+CREATE STREAMLIT "ORBIT"."DOC_AI"."PERTUSSIS_DOC_AI"
+  ROOT_LOCATION = '@ORBIT.DOC_AI.DOC_AI_STAGE/streamlit_app'
+  MAIN_FILE = 'streamlit_app.py'
+  QUERY_WAREHOUSE = 'YOUR_WAREHOUSE';
 ```
 
-#### Create Stage for File Uploads
-```sql
-CREATE STAGE YOUR_STAGE_NAME;
-```
+2. **Copy Files to Snowflake:**
+   - Copy all files from this repo into your Snowflake Streamlit app
+   - Files will be automatically uploaded to the stage location
 
-#### Create Required Tables
-The application will auto-create these tables, but you can create them manually:
+3. **Update Configuration:**
+   - Edit `config.py` to match your specific model names and settings
+   - All database/schema/stage settings are pre-configured for ORBIT.DOC_AI
 
-```sql
--- For Document Processor results
-CREATE TABLE YOUR_PREDICTION_TABLE (
-    FILE_NAME VARCHAR,
-    JSON VARIANT,
-    CREATED_TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
-);
-
--- For AI Extract results  
-CREATE TABLE YOUR_AI_EXTRACT_TABLE (
-    extraction_id VARCHAR PRIMARY KEY,
-    file_name VARCHAR,
-    extraction_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
-    field_1 VARCHAR,
-    field_2 VARCHAR,
-    -- Add fields matching your extraction schema
-    raw_json VARIANT
-);
-```
-
-### 4. Customize Document Processing Logic
-
-#### Document Processor (`pages/DocumentProcessor_template.py`)
-- Update the `DOCUMENT_AI_MODEL` configuration
-- Modify `create_flattened_table_if_not_exists()` function for your data structure
-- Customize the extraction query in `run_pipeline()` function
-
-#### AI Extract (`pages/AI_EXTRACT_template.py`)
-- Update `DEFAULT_EXTRACTION_SCHEMA` for your domain
-- Modify preset examples in `PRESET_EXAMPLES`
-- Customize the database save logic
-
-#### Natural Language Chat (`pages/NaturalLanguageChatBot_template.py`)
-- Create a semantic model YAML file for your data
-- Update `SEMANTIC_MODEL_FILE` path in config
-- Customize example questions in the sidebar
-
-### 5. Create Your Semantic Model
-
-Create a YAML file describing your data for Cortex Analyst:
-
-```yaml
-name: your_domain_model
-tables:
-  - name: YOUR_FLATTENED_TABLE
-    base_table:
-      database: YOUR_DATABASE
-      schema: YOUR_SCHEMA  
-      table: YOUR_FLATTENED_TABLE
-    dimensions:
-      - name: FIELD_1
-        expr: FIELD_1
-        data_type: VARCHAR
-        description: Description of field 1
-    facts:
-      - name: FIELD_2
-        expr: FIELD_2
-        data_type: NUMBER
-        description: Description of field 2
-```
-
-Upload this to your Snowflake stage:
-```sql
-PUT file://your_model.yaml @YOUR_STAGE_NAME;
-```
-
-## 🛠️ Customization Guide
-
-### Adding New File Types
-Update `SUPPORTED_FILE_TYPES` in `config.py`:
-```python
-SUPPORTED_FILE_TYPES = ['pdf', 'png', 'jpg', 'docx', 'your_new_type']
-```
-
-### Adding New Extraction Fields
-1. Update `DEFAULT_EXTRACTION_SCHEMA` in `config.py`
-2. Modify the database table creation SQL in AI_EXTRACT_template.py
-3. Update the insert SQL to include new fields
-
-### Customizing UI Branding
-- Update `APP_TITLE`, `DOMAIN_NAME`, and related variables in `config.py`
-- Modify CSS colors and styling in the template files
-- Replace emojis and icons throughout the templates
-
-### Adding New Preset Examples
-Update `PRESET_EXAMPLES` in `config.py`:
-```python
-PRESET_EXAMPLES = {
-    "your_new_example": {
-        "name": "Your Example Name",
-        "text": "Example text content...",
-        "schema": {
-            "field1": "Question 1?",
-            "field2": "Question 2?"
-        }
-    }
-}
-```
+4. **Run the App:**
+   - Click "Run App" in Snowflake UI
+   - Test all three tools with your data
 
 ## 📁 File Structure
 
 ```
-your-project/
-├── config.py                              # Main configuration file
-├── streamlit_app.py                       # Home page (rename from template)
-├── pages/
-│   ├── DocumentProcessor.py              # Document processing tool
-│   ├── AI_EXTRACT.py                     # AI extraction tool  
-│   └── NaturalLanguageChatBot.py         # Data analysis chat
-├── your_semantic_model.yaml              # Cortex Analyst model
-└── README.md                             # This file
+streamlit_app.py              # Main home page
+config.py                     # Configuration (pre-set for ORBIT.DOC_AI)
+pages/
+  ├── DocumentProcessor.py    # Upload & process documents with AI models
+  ├── AI_EXTRACT.py          # Extract specific pertussis data fields  
+  └── NaturalLanguageChatBot.py # Chat interface for data analysis
 ```
 
-## 🔧 Environment Setup
+## 🛠️ Available Tools
 
-### Requirements
-Create `requirements.txt`:
+### 1. 📊 Document Processor
+- **Purpose:** Upload and process CDC pertussis surveillance documents
+- **Features:**
+  - Select from multiple trained AI models
+  - PDF preview and processing
+  - Automatic data extraction and structuring
+  - Results stored in organized tables
+  - Edit extracted data before saving
+
+### 2. 🔍 AI Extract  
+- **Purpose:** Extract specific epidemiological data fields
+- **Features:**
+  - Two input methods: file upload or text input
+  - Pre-configured with 10 key pertussis surveillance questions
+  - Custom JSON schema support for text input
+  - Structured output for analysis
+  - Save results to database or copy data
+
+### 3. 💬 Natural Language Chat
+- **Purpose:** Query processed data using natural language
+- **Features:**
+  - Ask questions about surveillance data in plain English
+  - Automatic SQL generation using Cortex Analyst
+  - Interactive charts and visualizations
+  - Export chat history and results
+
+## ⚙️ Configuration Details
+
+### Pre-configured Settings (config.py)
+```python
+DATABASE_NAME = "ORBIT"
+SCHEMA_NAME = "DOC_AI" 
+STAGE_NAME = "ORBIT.DOC_AI.DOC_AI_STAGE"
 ```
-streamlit
-snowflake-snowpark-python
-pandas
-pypdfium2
+
+### Tables Created Automatically
+- `ORBIT.DOC_AI.PREDICTION_RESULTS` - Document processing results
+- `ORBIT.DOC_AI.FLATTENED_DATA` - Structured extracted data
+- `ORBIT.DOC_AI.INFECTIOUS_DISEASE_EXTRACTIONS` - AI Extract results
+
+### AI Extract Schema (10 Key Fields)
+1. Disease/Pathogen identification
+2. Reporting area/jurisdiction
+3. Reporting period (dates/timeframes)
+4. Case counts and statistics
+5. Population data and demographics
+6. Incidence rates and attack rates
+7. Trend analysis and comparisons
+8. Outbreak status determination
+9. Data source identification
+10. Public health actions and recommendations
+
+## 🔧 Customization
+
+### Pre-configured Model
+The app is configured with your trained CDC pertussis model:
+```python
+AVAILABLE_MODELS = {
+    "CDC Pertussis Table Extraction": "ORBIT.DOC_AI.PERTUSSIS_CDC!PREDICT",
+}
 ```
 
-### Environment File
-Create `environment.yml`:
-```yaml
-name: your_app_environment
-channels:
-  - snowflake
-dependencies:
-  - pypdfium2=4.19.0
-  - python=3.11.*
-  - snowflake-snowpark-python
-  - streamlit
+This model is specifically trained for extracting tables from CDC pertussis surveillance documents.
+
+### Custom Branding
+Update `APP_TITLE` and related settings in `config.py`:
+```python
+APP_TITLE = "Your Organization Document AI Platform"
+APP_SUBTITLE = "Your custom description"
 ```
 
-## 🚀 Deployment
+### Semantic Model for Chat
+- Upload your semantic model YAML file to the stage
+- Update `SEMANTIC_MODEL_FILE` in config.py
+- The chat interface will use this for natural language queries
 
-### Local Development
-```bash
-streamlit run streamlit_app.py
+## 🎯 Usage Examples
+
+### Document Processor
+1. Select appropriate AI model from dropdown
+2. Upload CDC pertussis surveillance document (PDF, DOC, etc.)
+3. Preview document content
+4. Click "Process Document" 
+5. Review and edit extracted data
+6. Save results to database tables
+
+### AI Extract
+1. **File Upload Tab:**
+   - Upload pertussis surveillance document
+   - AI extracts 10 key surveillance fields
+   - Edit results and save to database
+
+2. **Text Input Tab:**
+   - Paste surveillance report text
+   - Choose default schema or create custom JSON schema
+   - Extract structured data from text
+
+### Natural Language Chat
+1. Ask questions like:
+   - "How many pertussis cases were reported last month?"
+   - "What are the trends by geographic area?"
+   - "Show me outbreak status distribution"
+2. View auto-generated SQL queries
+3. Explore results with interactive charts
+
+## 🔍 Troubleshooting
+
+### Model Access Issues
+```sql
+-- Check if your models exist
+DESCRIBE FUNCTION ORBIT.DOC_AI.YOUR_MODEL_NAME;
 ```
 
-### Snowflake Deployment
-1. Upload all files to your Snowflake stage
-2. Create Streamlit app in Snowflake
-3. Configure environment and dependencies
+### Stage Access Issues  
+```sql
+-- Verify stage and list files
+LIST @ORBIT.DOC_AI.DOC_AI_STAGE;
+```
 
-## 📊 Example Use Cases
+### Permission Issues
+```sql
+-- Check Cortex permissions
+SHOW GRANTS OF DATABASE ROLE SNOWFLAKE.CORTEX_USER;
+```
 
-### Financial Document Processing
-- Process financial reports, invoices, statements
-- Extract revenue, expenses, dates, account numbers
-- Analyze financial trends and patterns
+## 📊 Data Flow
 
-### Healthcare Document Analysis  
-- Process patient records, lab reports, clinical notes
-- Extract patient info, diagnoses, medications, dates
-- Analyze treatment patterns and outcomes
+1. **Documents** → Upload to `DOC_AI_STAGE`
+2. **AI Models** → Process documents and extract data
+3. **Database Tables** → Store structured results
+4. **Chat Interface** → Query and analyze processed data
+5. **Visualizations** → Interactive charts and exports
 
-### Legal Document Review
-- Process contracts, legal briefs, court documents
-- Extract parties, dates, clauses, obligations
-- Analyze contract terms and legal patterns
+## 🎉 Ready to Go!
 
-### Research Paper Analysis
-- Process academic papers, research reports
-- Extract authors, methodologies, findings, citations
-- Analyze research trends and insights
+Your CDC Pertussis Document AI Platform is configured and ready to process surveillance documents. Upload your documents and start extracting valuable epidemiological insights!
 
-## 🆘 Troubleshooting
+---
 
-### Common Issues
-
-**Configuration Errors:**
-- Verify all placeholders in `config.py` are updated
-- Check database/schema/stage names match your Snowflake setup
-- Ensure your Document AI model exists and is accessible
-
-**Permission Errors:**
-- Verify Snowflake user has required permissions
-- Check Cortex AI access is enabled
-- Ensure stage and table permissions are correct
-
-**Processing Errors:**
-- Verify file upload stage exists and is accessible
-- Check document AI model is properly deployed
-- Ensure semantic model YAML is valid and uploaded
-
-### Support
-- Review Snowflake Cortex documentation
-- Check Streamlit documentation for UI issues
-- Validate SQL queries in Snowflake worksheet
-
-## 📝 License
-
-This template is provided as-is for customization. Modify according to your needs and organizational requirements.
+**💡 Need Help?** 
+- Check the sidebar instructions in each tool
+- Review the configuration in `config.py`
+- Test with sample documents first
+- Use the Natural Language Chat to explore your processed data
