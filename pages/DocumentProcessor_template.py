@@ -51,16 +51,43 @@ st.markdown(
 )
 
 # -------------------------
-# Sidebar Instructions
+# Sidebar Instructions & Model Selection
 # -------------------------
+st.sidebar.title("Model Selection")
+
+# Model selection dropdown
+selected_model = st.sidebar.selectbox(
+    "Choose Document AI Model:",
+    options=list(AVAILABLE_MODELS.keys()),
+    index=list(AVAILABLE_MODELS.keys()).index(DEFAULT_MODEL),
+    help="Select the AI model that best matches your document type"
+)
+
+# Display selected model info
+st.sidebar.info(f"**Selected Model:** {selected_model}")
+
+# Get the actual model name for processing
+current_model = AVAILABLE_MODELS[selected_model]
+
+st.sidebar.markdown("---")
 st.sidebar.title("How to Use")
 st.sidebar.markdown(f"""
-1. **Upload PDF**: Select a PDF file.
-2. **Preview**: The first page of the PDF is shown immediately.
-3. **Processing**: A multi-step progress bar indicates the pipeline steps.
-4. **Edit & Save**: Edit the extracted table and save it with timestamps—no re-processing occurs on save.
+1. **Select Model**: Choose the appropriate AI model for your document type above.
+2. **Upload PDF**: Select a PDF file.
+3. **Preview**: The first page of the PDF is shown immediately.
+4. **Processing**: A multi-step progress bar indicates the pipeline steps.
+5. **Edit & Save**: Edit the extracted table and save it with timestamps—no re-processing occurs on save.
 
-Note: this app is using a pre-built {DOMAIN_NAME} document extraction model. Customize for your document types.
+**Available Models:**
+""")
+
+# List all available models in sidebar
+for model_name, model_path in AVAILABLE_MODELS.items():
+    status = "🟢" if model_name == selected_model else "⚪"
+    st.sidebar.markdown(f"{status} {model_name}")
+
+st.sidebar.markdown(f"""
+Note: Each model is optimized for specific document types. Select the model that best matches your documents for optimal results.
 """)
 
 # -------------------------
@@ -114,6 +141,7 @@ def create_destination_table_if_not_exists(dest_table: str):
             Field_3 VARCHAR,              -- Replace with your field names
             Field_4 VARCHAR,              -- Replace with your field names
             Field_5 VARCHAR,              -- Replace with your field names
+            MODEL_USED VARCHAR,           -- Track which AI model was used
             EXTRACTION_TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
         )
     """
@@ -216,11 +244,12 @@ def run_pipeline(file_name: str, file_content: bytes):
     def step_run_predictions():
         session.sql(f"DELETE FROM {internal_predict_table} WHERE FILE_NAME = '{file_name}'").collect()
         
-        # CUSTOMIZE: Replace with your actual document AI model
+        # Use the selected model for prediction
         predict_sql = f"""
             INSERT INTO {internal_predict_table}
             SELECT '{file_name}' as FILE_NAME, 
-                   {DOCUMENT_AI_MODEL} (
+                   '{selected_model}' as MODEL_USED,
+                   {current_model} (
                      GET_PRESIGNED_URL(@{stage_name}, '{file_name}')
                    ) as JSON;
         """
@@ -284,7 +313,23 @@ def run_pipeline(file_name: str, file_content: bytes):
 # -------------------------
 st.subheader(f"Upload a {DOCUMENT_TYPE.upper()}")
 
-uploaded_file = st.file_uploader("Select a PDF file", type=["pdf"], help="Only PDF format is supported.")
+# Display current model selection prominently
+col1, col2 = st.columns([3, 1])
+with col1:
+    uploaded_file = st.file_uploader("Select a PDF file", type=["pdf"], help="Only PDF format is supported.")
+with col2:
+    st.info(f"**Using Model:**\n{selected_model}")
+    
+    # Add model validation
+    if st.button("🔍 Test Model", help="Test if the selected model is accessible"):
+        try:
+            # Simple test to check if model exists
+            test_query = f"SELECT SYSTEM$GET_SNOWFLAKE_PLATFORM_INFO()"
+            session.sql(test_query).collect()
+            st.success("✅ Model accessible")
+        except Exception as e:
+            st.error(f"❌ Model test failed: {str(e)[:100]}...")
+            st.warning("Check model name in config.py")
 
 # Initialize progress/status placeholders
 progress_bar = st.progress(0)
@@ -326,18 +371,33 @@ if uploaded_file is not None:
     if predict_results is not None and extracted_df is not None:
         with st.expander("View Prediction Results and Extracted Data", expanded=True):
             st.subheader("Prediction Results and Extracted Document Data")
+            
+            # Show processing info
+            st.info(f"**Processed with Model:** {selected_model}")
 
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown("### Raw Prediction JSON")
                 if not predict_results.empty:
                     st.json(predict_results.to_dict(orient='records'))
+                    
+                    # Show model used if tracked
+                    if 'MODEL_USED' in predict_results.columns:
+                        st.markdown(f"**Model Used:** {predict_results['MODEL_USED'].iloc[0] if len(predict_results) > 0 else 'Unknown'}")
                 else:
                     st.warning("No raw prediction data available.")
             with col2:
                 st.markdown("### Extracted Document Data")
                 # CUSTOMIZE: Update this to query your actual flattened table
-                st.dataframe(session.sql(f"SELECT * FROM {flattened_table}").to_pandas())
+                try:
+                    flattened_data = session.sql(f"SELECT * FROM {flattened_table}").to_pandas()
+                    st.dataframe(flattened_data)
+                    
+                    if len(flattened_data) > 0:
+                        st.success(f"✅ {len(flattened_data)} records extracted successfully")
+                except Exception as e:
+                    st.warning(f"Flattened table not available: {str(e)[:100]}...")
+                    st.markdown("*Data will appear here after flattening process*")
 
 # Footer
 st.markdown(

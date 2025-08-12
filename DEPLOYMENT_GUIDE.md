@@ -41,81 +41,94 @@ Edit `config.py` and replace these key variables:
 
 ```python
 # 🏢 ORGANIZATION SETTINGS
-DATABASE_NAME = "FINANCIAL_DOCS"           # Your database
-SCHEMA_NAME = "PROCESSING"                 # Your schema
-STAGE_NAME = "FINANCIAL_DOCS.PROCESSING.UPLOADS"  # Your stage
+DATABASE_NAME = "CDC_SURVEILLANCE"         # Your database
+SCHEMA_NAME = "PUBLIC"                     # Your schema
+STAGE_NAME = "CDC_SURVEILLANCE.PUBLIC.INFECTIOUS_DISEASES"  # Your stage
 
 # 🎯 DOMAIN CUSTOMIZATION  
-APP_TITLE = "Financial Document AI"       # Your app name
-DOMAIN_NAME = "Financial Document Processing"  # Your domain
-DOCUMENT_TYPE = "financial documents"     # Your document types
-PRIMARY_USE_CASE = "financial data analysis"  # Your use case
+APP_TITLE = "CDC Document AI Platform"    # Your app name
+DOMAIN_NAME = "CDC Infectious Disease Surveillance"  # Your domain
+DOCUMENT_TYPE = "CDC surveillance documents"     # Your document types
+PRIMARY_USE_CASE = "epidemiological data"  # Your use case
 
-# 🤖 AI MODEL CONFIGURATION
-DOCUMENT_AI_MODEL = "FINANCIAL_DOCS.PROCESSING.INVOICE_EXTRACTOR!PREDICT"
+# 🤖 AI MODEL CONFIGURATION - Multiple CDC Models Support
+AVAILABLE_MODELS = {
+    "CDC Pertussis Surveillance": "CDC_SURVEILLANCE.PUBLIC.GINKGO_TABLE_EXTRACTION_SIMPLE!PREDICT",
+    "MMWR Weekly Reports": "CDC_SURVEILLANCE.PUBLIC.MMWR_WEEKLY_MODEL!PREDICT",
+    "Outbreak Investigation Reports": "CDC_SURVEILLANCE.PUBLIC.OUTBREAK_INVESTIGATION_MODEL!PREDICT",
+    "Surveillance Summaries": "CDC_SURVEILLANCE.PUBLIC.SURVEILLANCE_SUMMARY_MODEL!PREDICT",
+    "NNDSS Annual Reports": "CDC_SURVEILLANCE.PUBLIC.NNDSS_ANNUAL_MODEL!PREDICT",
+    "State Health Dept Reports": "CDC_SURVEILLANCE.PUBLIC.STATE_HEALTH_MODEL!PREDICT"
+}
+DEFAULT_MODEL = "CDC Pertussis Surveillance"
 
 # 📊 SEMANTIC MODEL
-SEMANTIC_MODEL_FILE = "@FINANCIAL_DOCS.PROCESSING.UPLOADS/financial_model.yaml"
+SEMANTIC_MODEL_FILE = "@CDC_SURVEILLANCE.PUBLIC.INFECTIOUS_DISEASES/epidemiology.yaml"
 ```
 
 ### Step 3: Customize Extraction Schema (5 minutes)
 
-Update the extraction questions for your domain:
+Update the extraction questions for CDC infectious disease documents:
 
 ```python
 DEFAULT_EXTRACTION_SCHEMA = {
-    "vendor_name": "What is the vendor or supplier name?",
-    "invoice_number": "What is the invoice number?", 
-    "invoice_date": "What is the invoice date?",
-    "total_amount": "What is the total amount?",
-    "tax_amount": "What is the tax amount?",
-    "due_date": "What is the payment due date?",
-    "line_items": "List: What are the line items?",
-    "payment_terms": "What are the payment terms?",
-    "purchase_order": "What is the purchase order number?",
-    "account_codes": "List: What account codes are mentioned?"
+    "disease_pathogen": "What infectious disease or pathogen is this document about?",
+    "reporting_area": "What geographic area, region, or jurisdiction is being reported?",
+    "reporting_period": "What time period does this report cover (dates, weeks, months)?",
+    "case_counts": "What are the case numbers, counts, or statistics mentioned?",
+    "population_data": "What population size or demographic information is provided?",
+    "incidence_rates": "What are the incidence rates, attack rates, or rates per population?",
+    "trend_analysis": "What trends, changes, or comparisons to previous periods are mentioned?",
+    "outbreak_status": "Is this an outbreak, epidemic, or routine surveillance? What is the status?",
+    "data_source": "What is the source of the data or who reported this information?",
+    "public_health_actions": "What public health actions, interventions, or recommendations are mentioned?"
 }
 ```
 
 ### Step 4: Create Semantic Model (15 minutes)
 
-Create `your_domain_model.yaml`:
+Create `epidemiology.yaml`:
 
 ```yaml
-name: financial_document_model
+name: epidemiology
 tables:
-  - name: FINANCIAL_EXTRACTIONS
+  - name: PERTUSSIS_DATA_FLATTENED
     base_table:
-      database: FINANCIAL_DOCS
-      schema: PROCESSING
-      table: INVOICE_DATA_FLATTENED
+      database: CDC_SURVEILLANCE
+      schema: PUBLIC
+      table: PERTUSSIS_DATA_FLATTENED
     dimensions:
-      - name: VENDOR_NAME
-        expr: VENDOR_NAME
+      - name: REPORTING_AREA
+        expr: REPORTING_AREA
         data_type: VARCHAR
-        description: Name of the vendor or supplier
-        synonyms: [supplier, company, vendor]
-      - name: INVOICE_DATE  
-        expr: INVOICE_DATE
-        data_type: DATE
-        description: Date of the invoice
-        synonyms: [date, invoice_date, bill_date]
+        description: Geographic area where the case was reported
+        synonyms: [region, location, area, jurisdiction]
+      - name: OUTBREAK_STATUS  
+        expr: OUTBREAK_STATUS
+        data_type: VARCHAR
+        description: Status of outbreak or surveillance
+        synonyms: [status, classification, level]
     facts:
-      - name: TOTAL_AMOUNT
-        expr: TOTAL_AMOUNT  
-        data_type: NUMBER(12,2)
-        description: Total invoice amount
-        synonyms: [amount, total, cost, price]
-      - name: TAX_AMOUNT
-        expr: TAX_AMOUNT
-        data_type: NUMBER(12,2) 
-        description: Tax amount on invoice
-        synonyms: [tax, vat, sales_tax]
+      - name: CURRENT_WEEK
+        expr: CURRENT_WEEK  
+        data_type: NUMBER
+        description: Current week case count
+        synonyms: [weekly_cases, week_count, current_cases]
+      - name: CUM_YTD_2024
+        expr: CUM_YTD_2024
+        data_type: NUMBER 
+        description: Cumulative year-to-date 2024 cases
+        synonyms: [ytd_2024, cumulative_2024, total_2024]
+      - name: CUM_YTD_2025
+        expr: CUM_YTD_2025
+        data_type: NUMBER 
+        description: Cumulative year-to-date 2025 cases
+        synonyms: [ytd_2025, cumulative_2025, total_2025]
 ```
 
 Upload to Snowflake:
 ```sql
-PUT file://your_domain_model.yaml @YOUR_STAGE_NAME;
+PUT file://epidemiology.yaml @CDC_SURVEILLANCE.PUBLIC.INFECTIOUS_DISEASES;
 ```
 
 ### Step 5: File Rename and Deploy (2 minutes)
@@ -184,9 +197,12 @@ DEFAULT_EXTRACTION_SCHEMA = {
 ## 🔍 Testing Your Deployment
 
 ### Test Document Processor
-1. Upload a sample PDF document
-2. Verify processing pipeline completes
-3. Check that data appears in your tables
+1. **Select appropriate model** from the dropdown in the sidebar
+2. **Test model accessibility** using the "Test Model" button
+3. Upload a sample PDF document
+4. Verify processing pipeline completes
+5. Check that data appears in your tables
+6. Verify model tracking in results
 
 ### Test AI Extract  
 1. Try the file upload tab with a sample document
