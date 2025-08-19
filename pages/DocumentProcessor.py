@@ -2,11 +2,24 @@ import streamlit as st
 import pandas as pd
 import uuid
 import pypdfium2 as pdfium
-from config import (
-    AVAILABLE_MODELS, DEFAULT_MODEL, STAGE_NAME, 
-    PREDICTION_RESULTS_TABLE, FLATTENED_DATA_TABLE,
-    get_snowflake_session
-)
+from snowflake.snowpark.context import get_active_session
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+DATABASE_NAME = "ORBIT"
+SCHEMA_NAME = "DOC_AI"
+STAGE_NAME = f"{DATABASE_NAME}.{SCHEMA_NAME}.DOC_AI_STAGE"
+
+AVAILABLE_MODELS = {
+    "CDC Pertussis Table Extraction": f"{DATABASE_NAME}.{SCHEMA_NAME}.PERTUSSIS_CDC!PREDICT",
+}
+
+DEFAULT_MODEL = "CDC Pertussis Table Extraction"
+PREDICTION_RESULTS_TABLE = f"{DATABASE_NAME}.{SCHEMA_NAME}.CDC_PERTUSSIS_PREDICTION_RESULTS"
+FLATTENED_DATA_TABLE = f"{DATABASE_NAME}.{SCHEMA_NAME}.CDC_PERTUSSIS_FLATTENED_DATA"
+AI_EXTRACT_TABLE = f"{DATABASE_NAME}.{SCHEMA_NAME}.CDC_PERTUSSIS_AI_EXTRACTIONS"
 
 # =============================================================================
 # PAGE CONFIGURATION
@@ -110,10 +123,66 @@ st.sidebar.markdown("""
 # SNOWFLAKE SESSION
 # =============================================================================
 
-session = get_snowflake_session()
+session = get_active_session()
 if not session:
     st.error("❌ Cannot connect to Snowflake. Please check your connection.")
     st.stop()
+
+# =============================================================================
+# TABLE CREATION
+# =============================================================================
+
+@st.cache_resource
+def create_tables():
+    """Create necessary tables if they don't exist"""
+    try:
+        # Prediction Results Table
+        create_prediction_table = f"""
+        CREATE TABLE IF NOT EXISTS {PREDICTION_RESULTS_TABLE} (
+            FILE_NAME VARCHAR,
+            MODEL_USED VARCHAR,
+            JSON VARIANT,
+            CREATED_TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+        )
+        """
+        
+        # AI Extract Table
+        create_extract_table = f"""
+        CREATE TABLE IF NOT EXISTS {AI_EXTRACT_TABLE} (
+            EXTRACTION_ID VARCHAR,
+            SOURCE_TYPE VARCHAR,
+            FILE_NAME VARCHAR,
+            EXTRACTED_DATA VARIANT,
+            CREATED_TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+        )
+        """
+        
+        # Flattened Data Table
+        create_flattened_table = f"""
+        CREATE TABLE IF NOT EXISTS {FLATTENED_DATA_TABLE} (
+            FILE_NAME VARCHAR,
+            REPORTING_AREA VARCHAR,
+            PERTUSSIS_CURRENT_WEEK INTEGER,
+            PERTUSSIS_PREVIOUS_52_WEEKS_MAX INTEGER,
+            PERTUSSIS_PREVIOUS_52_WEEKS_TOTAL INTEGER,
+            PERTUSSIS_CUMULATIVE_YTD_CURRENT_YEAR INTEGER,
+            PERTUSSIS_CUMULATIVE_YTD_PREVIOUS_YEAR INTEGER,
+            MODEL_USED VARCHAR,
+            EXTRACTION_TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+        )
+        """
+        
+        session.sql(create_prediction_table).collect()
+        session.sql(create_extract_table).collect()
+        session.sql(create_flattened_table).collect()
+        return True
+    except Exception as e:
+        st.error(f"Failed to create tables: {str(e)}")
+        return False
+
+# Create tables on app startup
+if create_tables():
+    st.success("✅ Database tables ready")
 
 # =============================================================================
 # FILE UPLOAD SECTION

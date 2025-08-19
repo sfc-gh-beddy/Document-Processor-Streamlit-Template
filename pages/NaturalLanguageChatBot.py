@@ -1,7 +1,17 @@
 import streamlit as st
 import pandas as pd
 import json
-from config import SEMANTIC_MODEL_FILE, get_snowflake_session
+import _snowflake
+from snowflake.snowpark.context import get_active_session
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+DATABASE_NAME = "ORBIT"
+SCHEMA_NAME = "DOC_AI"
+STAGE_NAME = f"{DATABASE_NAME}.{SCHEMA_NAME}.DOC_AI_STAGE"
+SEMANTIC_MODEL_FILE = f"@{STAGE_NAME}/epidemiology.yaml"
 
 # =============================================================================
 # PAGE CONFIGURATION
@@ -72,7 +82,7 @@ st.markdown("Ask questions about your CDC pertussis surveillance data using natu
 # SNOWFLAKE SESSION
 # =============================================================================
 
-session = get_snowflake_session()
+session = get_active_session()
 if not session:
     st.error("❌ Cannot connect to Snowflake. Please check your connection.")
     st.stop()

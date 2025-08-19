@@ -1,5 +1,11 @@
 import streamlit as st
-from config import APP_TITLE, APP_SUBTITLE
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+APP_TITLE = "CDC Pertussis Document AI Platform"
+APP_SUBTITLE = "Advanced AI-powered document processing and epidemiological data extraction"
 
 # =============================================================================
 # PAGE CONFIGURATION

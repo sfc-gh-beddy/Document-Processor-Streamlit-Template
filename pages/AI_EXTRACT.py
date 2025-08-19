@@ -2,10 +2,29 @@ import streamlit as st
 import pandas as pd
 import json
 import uuid
-from config import (
-    STAGE_NAME, AI_EXTRACT_TABLE, DEFAULT_EXTRACTION_SCHEMA,
-    get_snowflake_session
-)
+from snowflake.snowpark.context import get_active_session
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+DATABASE_NAME = "ORBIT"
+SCHEMA_NAME = "DOC_AI"
+STAGE_NAME = f"{DATABASE_NAME}.{SCHEMA_NAME}.DOC_AI_STAGE"
+AI_EXTRACT_TABLE = f"{DATABASE_NAME}.{SCHEMA_NAME}.CDC_PERTUSSIS_AI_EXTRACTIONS"
+
+DEFAULT_EXTRACTION_SCHEMA = {
+    "disease": "What infectious disease is being reported?",
+    "reporting_area": "What is the reporting area or jurisdiction?", 
+    "time_period": "What time period does this report cover?",
+    "case_count": "How many confirmed cases are reported?",
+    "population_affected": "What population group is primarily affected?",
+    "symptoms": "What are the main symptoms described?",
+    "transmission": "How is the disease transmitted?",
+    "prevention_measures": "What prevention measures are recommended?",
+    "public_health_response": "What public health actions were taken?",
+    "data_source": "What is the source of this surveillance data?"
+}
 
 # =============================================================================
 # PAGE CONFIGURATION
@@ -68,10 +87,36 @@ st.markdown("Extract structured data from CDC pertussis surveillance documents u
 # SNOWFLAKE SESSION
 # =============================================================================
 
-session = get_snowflake_session()
+session = get_active_session()
 if not session:
     st.error("❌ Cannot connect to Snowflake. Please check your connection.")
     st.stop()
+
+# =============================================================================
+# TABLE CREATION
+# =============================================================================
+
+@st.cache_resource
+def create_extract_table():
+    """Create AI Extract table if it doesn't exist"""
+    try:
+        create_table_sql = f"""
+        CREATE TABLE IF NOT EXISTS {AI_EXTRACT_TABLE} (
+            EXTRACTION_ID VARCHAR,
+            SOURCE_TYPE VARCHAR,
+            FILE_NAME VARCHAR,
+            EXTRACTED_DATA VARIANT,
+            CREATED_TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+        )
+        """
+        session.sql(create_table_sql).collect()
+        return True
+    except Exception as e:
+        st.error(f"Failed to create extraction table: {str(e)}")
+        return False
+
+# Create table on app startup
+create_extract_table()
 
 # =============================================================================
 # TABS INTERFACE

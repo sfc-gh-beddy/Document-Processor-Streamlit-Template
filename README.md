@@ -1,190 +1,89 @@
 # 🦠 CDC Pertussis Document AI Platform
 
-A Streamlit application for processing CDC pertussis surveillance documents using Snowflake's AI capabilities.
+A streamlined Streamlit application for processing CDC pertussis surveillance documents using Snowflake's AI capabilities.
 
-## 🚀 Quick Start
+## 🚀 Quick Start (2 minutes)
 
-### Prerequisites
-- Snowflake account with Cortex AI enabled
-- Documents stored in `ORBIT.DOC_AI.DOC_AI_STAGE`
-- Trained Document AI models available
-
-### Setup in Snowflake
-
-1. **Create Streamlit App:**
+### 1. Create Streamlit App in Snowflake
 ```sql
-CREATE STREAMLIT "ORBIT"."DOC_AI"."PERTUSSIS_DOC_AI"
+CREATE STREAMLIT "ORBIT"."DOC_AI"."CDC_PERTUSSIS_APP"
   ROOT_LOCATION = '@ORBIT.DOC_AI.DOC_AI_STAGE/streamlit_app'
   MAIN_FILE = 'streamlit_app.py'
   QUERY_WAREHOUSE = 'YOUR_WAREHOUSE';
 ```
 
-2. **Copy Files to Snowflake:**
-   - Copy all files from this repo into your Snowflake Streamlit app
-   - Files will be automatically uploaded to the stage location
+### 2. Copy Files to Snowflake
+Simply drag and drop these files into your Snowflake Streamlit app:
 
-3. **Update Configuration:**
-   - Edit `config.py` to match your specific model names and settings
-   - All database/schema/stage settings are pre-configured for ORBIT.DOC_AI
+1. **`streamlit_app.py`** → Main application file
+2. **`pages/DocumentProcessor.py`** → Document processing page  
+3. **`pages/AI_EXTRACT.py`** → AI extraction page
+4. **`pages/NaturalLanguageChatBot.py`** → Chat interface page
 
-4. **Run the App:**
-   - Click "Run App" in Snowflake UI
-   - Test all three tools with your data
+### 3. Run and Test
+Click "Run App" in Snowflake - that's it! The app is pre-configured for your ORBIT.DOC_AI environment.
 
-## 📁 File Structure
+## 📁 Files Included
 
 ```
-streamlit_app.py              # Main home page
-config.py                     # Configuration (pre-set for ORBIT.DOC_AI)
+streamlit_app.py                 # Main home page with tool overview
 pages/
-  ├── DocumentProcessor.py    # Upload & process documents with AI models
-  ├── AI_EXTRACT.py          # Extract specific pertussis data fields  
-  └── NaturalLanguageChatBot.py # Chat interface for data analysis
+  ├── DocumentProcessor.py       # Upload & process documents with trained AI models
+  ├── AI_EXTRACT.py             # Extract specific pertussis surveillance fields  
+  └── NaturalLanguageChatBot.py  # Natural language chat interface
+environment.yml                  # Conda dependencies
 ```
 
-## 🛠️ Available Tools
+## 🛠️ What Each Tool Does
 
-### 1. 📊 Document Processor
-- **Purpose:** Upload and process CDC pertussis surveillance documents
-- **Features:**
-  - Select from multiple trained AI models
-  - PDF preview and processing
-  - Automatic data extraction and structuring
-  - Results stored in organized tables
-  - Edit extracted data before saving
+### 📊 Document Processor
+- **Upload CDC pertussis documents** (PDF, DOC, images)
+- **Process with trained model:** `ORBIT.DOC_AI.PERTUSSIS_CDC!PREDICT`
+- **Extract tables and structured data**
+- **Save results to:** `ORBIT.DOC_AI.CDC_PERTUSSIS_PREDICTION_RESULTS`
 
-### 2. 🔍 AI Extract  
-- **Purpose:** Extract specific epidemiological data fields
-- **Features:**
-  - Two input methods: file upload or text input
-  - Pre-configured with 10 key pertussis surveillance questions
-  - Custom JSON schema support for text input
-  - Structured output for analysis
-  - Save results to database or copy data
+### 🔍 AI Extract  
+- **Two modes:** Upload documents OR paste text directly
+- **Extracts 10 key surveillance fields:**
+  1. Disease being reported
+  2. Reporting area/jurisdiction
+  3. Time period covered
+  4. Case counts
+  5. Population affected
+  6. Symptoms described
+  7. Transmission method
+  8. Prevention measures
+  9. Public health response
+  10. Data source
+- **Save results to:** `ORBIT.DOC_AI.CDC_PERTUSSIS_AI_EXTRACTIONS`
 
-### 3. 💬 Natural Language Chat
-- **Purpose:** Query processed data using natural language
-- **Features:**
-  - Ask questions about surveillance data in plain English
-  - Automatic SQL generation using Cortex Analyst
-  - Interactive charts and visualizations
-  - Export chat history and results
+### 💬 Natural Language Chat
+- **Query processed data** using natural language
+- **Powered by Snowflake Cortex Analyst**
+- **Automatic SQL generation** and execution
+- **Interactive visualizations** and insights
 
-## ⚙️ Configuration Details
+## 🔧 Pre-configured Settings
 
-### Pre-configured Settings (config.py)
-```python
-DATABASE_NAME = "ORBIT"
-SCHEMA_NAME = "DOC_AI" 
-STAGE_NAME = "ORBIT.DOC_AI.DOC_AI_STAGE"
-```
+All Snowflake resources are pre-configured:
 
-### Tables Created Automatically
-- `ORBIT.DOC_AI.PREDICTION_RESULTS` - Document processing results
-- `ORBIT.DOC_AI.FLATTENED_DATA` - Structured extracted data
-- `ORBIT.DOC_AI.INFECTIOUS_DISEASE_EXTRACTIONS` - AI Extract results
+- **Database:** `ORBIT`
+- **Schema:** `DOC_AI` 
+- **Stage:** `ORBIT.DOC_AI.DOC_AI_STAGE` (your documents)
+- **Model:** `ORBIT.DOC_AI.PERTUSSIS_CDC!PREDICT`
+- **Tables:** Automatically created on first run
 
-### AI Extract Schema (10 Key Fields)
-1. Disease/Pathogen identification
-2. Reporting area/jurisdiction
-3. Reporting period (dates/timeframes)
-4. Case counts and statistics
-5. Population data and demographics
-6. Incidence rates and attack rates
-7. Trend analysis and comparisons
-8. Outbreak status determination
-9. Data source identification
-10. Public health actions and recommendations
+## 📋 Requirements
 
-## 🔧 Customization
+- Snowflake account with Cortex AI enabled
+- CDC pertussis documents in `ORBIT.DOC_AI.DOC_AI_STAGE`
+- Trained `PERTUSSIS_CDC` model deployed
+- Streamlit-enabled warehouse
 
-### Pre-configured Model
-The app is configured with your trained CDC pertussis model:
-```python
-AVAILABLE_MODELS = {
-    "CDC Pertussis Table Extraction": "ORBIT.DOC_AI.PERTUSSIS_CDC!PREDICT",
-}
-```
+## 🎯 Workflow
 
-This model is specifically trained for extracting tables from CDC pertussis surveillance documents.
+1. **Upload documents** → Document Processor extracts structured data
+2. **Extract key fields** → AI Extract pulls surveillance information  
+3. **Analyze results** → Natural Language Chat for insights
 
-### Custom Branding
-Update `APP_TITLE` and related settings in `config.py`:
-```python
-APP_TITLE = "Your Organization Document AI Platform"
-APP_SUBTITLE = "Your custom description"
-```
-
-### Semantic Model for Chat
-- Upload your semantic model YAML file to the stage
-- Update `SEMANTIC_MODEL_FILE` in config.py
-- The chat interface will use this for natural language queries
-
-## 🎯 Usage Examples
-
-### Document Processor
-1. Select appropriate AI model from dropdown
-2. Upload CDC pertussis surveillance document (PDF, DOC, etc.)
-3. Preview document content
-4. Click "Process Document" 
-5. Review and edit extracted data
-6. Save results to database tables
-
-### AI Extract
-1. **File Upload Tab:**
-   - Upload pertussis surveillance document
-   - AI extracts 10 key surveillance fields
-   - Edit results and save to database
-
-2. **Text Input Tab:**
-   - Paste surveillance report text
-   - Choose default schema or create custom JSON schema
-   - Extract structured data from text
-
-### Natural Language Chat
-1. Ask questions like:
-   - "How many pertussis cases were reported last month?"
-   - "What are the trends by geographic area?"
-   - "Show me outbreak status distribution"
-2. View auto-generated SQL queries
-3. Explore results with interactive charts
-
-## 🔍 Troubleshooting
-
-### Model Access Issues
-```sql
--- Check if your models exist
-DESCRIBE FUNCTION ORBIT.DOC_AI.YOUR_MODEL_NAME;
-```
-
-### Stage Access Issues  
-```sql
--- Verify stage and list files
-LIST @ORBIT.DOC_AI.DOC_AI_STAGE;
-```
-
-### Permission Issues
-```sql
--- Check Cortex permissions
-SHOW GRANTS OF DATABASE ROLE SNOWFLAKE.CORTEX_USER;
-```
-
-## 📊 Data Flow
-
-1. **Documents** → Upload to `DOC_AI_STAGE`
-2. **AI Models** → Process documents and extract data
-3. **Database Tables** → Store structured results
-4. **Chat Interface** → Query and analyze processed data
-5. **Visualizations** → Interactive charts and exports
-
-## 🎉 Ready to Go!
-
-Your CDC Pertussis Document AI Platform is configured and ready to process surveillance documents. Upload your documents and start extracting valuable epidemiological insights!
-
----
-
-**💡 Need Help?** 
-- Check the sidebar instructions in each tool
-- Review the configuration in `config.py`
-- Test with sample documents first
-- Use the Natural Language Chat to explore your processed data
+Perfect for CDC surveillance teams processing pertussis outbreak data! 🦠📊
