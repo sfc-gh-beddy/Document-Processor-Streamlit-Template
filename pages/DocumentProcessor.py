@@ -271,32 +271,36 @@ if uploaded_file is not None:
                     overwrite=True
                 )
                 
-                # Create internal prediction table name
-                internal_predict_table = f"TEMP_PREDICTIONS_{uuid.uuid4().hex[:8]}"
-                
-                # Run prediction
-                predict_sql = f"""
-                    CREATE OR REPLACE TEMPORARY TABLE {internal_predict_table} AS
+                # Run prediction and insert directly into permanent table
+                insert_sql = f"""
+                    INSERT INTO {PREDICTION_RESULTS_TABLE} (FILE_NAME, MODEL_USED, JSON, CREATED_TIMESTAMP)
                     SELECT '{uploaded_file.name}' as FILE_NAME,
                            '{selected_model}' as MODEL_USED,
                            {current_model}(
                                GET_PRESIGNED_URL(@{STAGE_NAME}, '{unique_filename}')
-                           ) as JSON
-                """
-                
-                session.sql(predict_sql).collect()
-                
-                # Insert into permanent table
-                insert_sql = f"""
-                    INSERT INTO {PREDICTION_RESULTS_TABLE}
-                    SELECT FILE_NAME, MODEL_USED, JSON, CURRENT_TIMESTAMP()
-                    FROM {internal_predict_table}
+                           ) as JSON,
+                           CURRENT_TIMESTAMP() as CREATED_TIMESTAMP
                 """
                 
                 session.sql(insert_sql).collect()
                 
-                # Get results
-                results_df = session.sql(f"SELECT * FROM {internal_predict_table}").to_pandas()
+                # Get the results we just inserted
+                results_df = session.sql(f"""
+                    SELECT JSON FROM {PREDICTION_RESULTS_TABLE} 
+                    WHERE FILE_NAME = '{uploaded_file.name}' 
+                    AND MODEL_USED = '{selected_model}'
+                    ORDER BY CREATED_TIMESTAMP DESC 
+                    LIMIT 1
+                """).to_pandas()
+                
+                # Store results in session state to persist across reruns
+                if not results_df.empty:
+                    st.session_state.processing_results = {
+                        'json_data': results_df.iloc[0]['JSON'],
+                        'file_name': uploaded_file.name,
+                        'model_used': selected_model,
+                        'processed_at': pd.Timestamp.now().strftime('%H:%M:%S')
+                    }
                 
                 if not results_df.empty:
                     st.markdown("""
@@ -360,19 +364,35 @@ if uploaded_file is not None:
                         
                         if save_button:
                             try:
-                                # Prepare data for insertion
-                                values = []
+                                # First ensure the destination table exists
+                                create_dest_table_sql = f"""
+                                CREATE TABLE IF NOT EXISTS {dest_table} (
+                                    FILE_NAME VARCHAR,
+                                    REPORTING_AREA VARCHAR,
+                                    PERTUSSIS_CURRENT_WEEK INTEGER,
+                                    PERTUSSIS_PREVIOUS_52_WEEKS_MAX INTEGER,
+                                    PERTUSSIS_PREVIOUS_52_WEEKS_TOTAL INTEGER,
+                                    PERTUSSIS_CUMULATIVE_YTD_CURRENT_YEAR INTEGER,
+                                    PERTUSSIS_CUMULATIVE_YTD_PREVIOUS_YEAR INTEGER,
+                                    MODEL_USED VARCHAR,
+                                    EXTRACTION_TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+                                )
+                                """
+                                session.sql(create_dest_table_sql).collect()
+                                
+                                # Prepare data for insertion with file name
                                 columns = list(edited_df.columns)
                                 
                                 # Pad with empty values if needed (assuming 5 field structure)
                                 while len(columns) < 5:
                                     columns.append(f"Field_{len(columns)+1}")
                                 
-                                row_values = []
+                                row_values = [f"'{uploaded_file.name}'"]  # Start with filename
                                 for col in columns[:5]:  # Take first 5 columns
                                     if col in edited_df.columns:
                                         value = edited_df.iloc[0][col]
-                                        row_values.append(f"'{str(value).replace("'", "''")}'" if value is not None else "NULL")
+                                        escaped_value = str(value).replace("'", "''") if value is not None else None
+                                        row_values.append(f"'{escaped_value}'" if escaped_value is not None else "NULL")
                                     else:
                                         row_values.append("NULL")
                                 
@@ -384,10 +404,25 @@ if uploaded_file is not None:
                                 """
                                 
                                 session.sql(insert_flattened_sql).collect()
-                                st.success(f"✅ Results saved to {dest_table}")
+                                
+                                # Store success message in session state
+                                st.session_state.save_success = f"✅ Results saved to {dest_table} at {pd.Timestamp.now().strftime('%H:%M:%S')}"
+                                st.rerun()  # Rerun to show success message
                                 
                             except Exception as e:
-                                st.error(f"❌ Error saving results: {str(e)}")
+                                st.session_state.save_error = f"❌ Error saving results: {str(e)}"
+                                st.rerun()
+                        
+                        # Display success/error messages from session state
+                        if hasattr(st.session_state, 'save_success'):
+                            st.success(st.session_state.save_success)
+                            # Clear the message after displaying
+                            del st.session_state.save_success
+                        
+                        if hasattr(st.session_state, 'save_error'):
+                            st.error(st.session_state.save_error)
+                            # Clear the message after displaying
+                            del st.session_state.save_error
                         
                         if copy_button:
                             # Display JSON for copying
@@ -411,6 +446,124 @@ if uploaded_file is not None:
                 
             except Exception as e:
                 st.error(f"❌ Error processing document: {str(e)}")
+
+# =============================================================================
+# DISPLAY RESULTS FROM SESSION STATE (PERSISTS ACROSS RERUNS)
+# =============================================================================
+
+if hasattr(st.session_state, 'processing_results') and st.session_state.processing_results:
+    results = st.session_state.processing_results
+    
+    st.markdown(f"""
+    <div class="success-status">
+        <h4>✅ Last Processing Complete! (at {results['processed_at']})</h4>
+        <p>File: <strong>{results['file_name']}</strong> | Model: <strong>{results['model_used']}</strong></p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("## 📊 Current Results")
+    
+    json_data = results['json_data']
+    
+    if json_data:
+        # Convert to DataFrame for editing
+        if isinstance(json_data, dict):
+            if 'data' in json_data:
+                df_data = json_data['data']
+            else:
+                df_data = json_data
+        else:
+            df_data = json_data
+        
+        # Create editable dataframe
+        edited_df = st.data_editor(
+            pd.DataFrame([df_data]) if isinstance(df_data, dict) else pd.DataFrame(df_data),
+            use_container_width=True,
+            num_rows="dynamic"
+        )
+        
+        # =============================================================================
+        # SAVE TO FLATTENED TABLE
+        # =============================================================================
+        
+        col1, col2, col3 = st.columns([2, 1, 1])
+        
+        with col1:
+            dest_table = st.text_input(
+                "Table Name (optional):",
+                value=FLATTENED_DATA_TABLE,
+                help="Specify custom table name or use default",
+                key="persistent_table_name"
+            )
+        
+        with col2:
+            save_button = st.button("💾 Save Results", type="secondary", key="persistent_save")
+        
+        with col3:
+            copy_button = st.button("📋 Copy JSON", type="secondary", key="persistent_copy")
+            clear_button = st.button("🗑️ Clear Results", type="secondary", key="clear_results")
+        
+        if clear_button:
+            del st.session_state.processing_results
+            st.rerun()
+        
+        if save_button:
+            try:
+                # First ensure the destination table exists
+                create_dest_table_sql = f"""
+                CREATE TABLE IF NOT EXISTS {dest_table} (
+                    FILE_NAME VARCHAR,
+                    REPORTING_AREA VARCHAR,
+                    PERTUSSIS_CURRENT_WEEK INTEGER,
+                    PERTUSSIS_PREVIOUS_52_WEEKS_MAX INTEGER,
+                    PERTUSSIS_PREVIOUS_52_WEEKS_TOTAL INTEGER,
+                    PERTUSSIS_CUMULATIVE_YTD_CURRENT_YEAR INTEGER,
+                    PERTUSSIS_CUMULATIVE_YTD_PREVIOUS_YEAR INTEGER,
+                    MODEL_USED VARCHAR,
+                    EXTRACTION_TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+                )
+                """
+                session.sql(create_dest_table_sql).collect()
+                
+                # Prepare data for insertion with file name
+                columns = list(edited_df.columns)
+                
+                # Pad with empty values if needed (assuming 5 field structure)
+                while len(columns) < 5:
+                    columns.append(f"Field_{len(columns)+1}")
+                
+                row_values = [f"'{results['file_name']}'"]  # Start with filename
+                for col in columns[:5]:  # Take first 5 columns
+                    if col in edited_df.columns:
+                        value = edited_df.iloc[0][col]
+                        escaped_value = str(value).replace("'", "''") if value is not None else None
+                        row_values.append(f"'{escaped_value}'" if escaped_value is not None else "NULL")
+                    else:
+                        row_values.append("NULL")
+                
+                # Add model used and timestamp
+                row_values.extend([f"'{results['model_used']}'", "CURRENT_TIMESTAMP()"])
+                
+                insert_flattened_sql = f"""
+                    INSERT INTO {dest_table} VALUES ({', '.join(row_values)})
+                """
+                
+                session.sql(insert_flattened_sql).collect()
+                st.success(f"✅ Results saved to {dest_table} at {pd.Timestamp.now().strftime('%H:%M:%S')}")
+                
+            except Exception as e:
+                st.error(f"❌ Error saving results: {str(e)}")
+        
+        if copy_button:
+            # Display JSON for copying
+            st.code(str(json_data), language='json')
+        
+        # =============================================================================
+        # RAW JSON DISPLAY
+        # =============================================================================
+        
+        with st.expander("🔍 View Raw JSON Output"):
+            st.json(json_data)
 
 # =============================================================================
 # RECENT RESULTS TABLE
