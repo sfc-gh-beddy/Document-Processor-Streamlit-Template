@@ -393,21 +393,23 @@ if uploaded_file is not None:
                                 # Prepare data for insertion with file name
                                 columns = list(edited_df.columns)
                                 
-                                # Pad with empty values if needed (assuming 5 field structure)
-                                while len(columns) < 5:
-                                    columns.append(f"Field_{len(columns)+1}")
+                                # Always ensure we have exactly 6 data fields for the 7 data columns (excluding FILE_NAME and MODEL_USED)
+                                row_values = [f"'{uploaded_file.name}'"]  # 1. FILE_NAME
                                 
-                                row_values = [f"'{uploaded_file.name}'"]  # Start with filename
-                                for col in columns[:5]:  # Take first 5 columns
-                                    if col in edited_df.columns:
-                                        value = edited_df.iloc[0][col]
+                                # Add the 6 data columns (REPORTING_AREA through PERTUSSIS_CUMULATIVE_YTD_PREVIOUS_YEAR)
+                                for i in range(6):
+                                    if i < len(columns) and columns[i] in edited_df.columns:
+                                        value = edited_df.iloc[0][columns[i]]
                                         escaped_value = str(value).replace("'", "''") if value is not None else None
                                         row_values.append(f"'{escaped_value}'" if escaped_value is not None else "NULL")
                                     else:
                                         row_values.append("NULL")
                                 
                                 # Add model used (don't include timestamp as it has DEFAULT)
-                                row_values.append(f"'{selected_model}'")
+                                row_values.append(f"'{selected_model}'")  # 8. MODEL_USED
+                                
+                                # Debug: Check we have exactly 8 values
+                                st.write(f"Debug: Inserting {len(row_values)} values: {row_values}")
                                 
                                 insert_flattened_sql = f"""
                                     INSERT INTO {dest_table} (
@@ -559,21 +561,23 @@ if hasattr(st.session_state, 'processing_results') and st.session_state.processi
                 # Prepare data for insertion with file name
                 columns = list(edited_df.columns)
                 
-                # Pad with empty values if needed (assuming 5 field structure)
-                while len(columns) < 5:
-                    columns.append(f"Field_{len(columns)+1}")
+                # Always ensure we have exactly 6 data fields for the 7 data columns (excluding FILE_NAME and MODEL_USED)
+                row_values = [f"'{results['file_name']}'"]  # 1. FILE_NAME
                 
-                row_values = [f"'{results['file_name']}'"]  # Start with filename
-                for col in columns[:5]:  # Take first 5 columns
-                    if col in edited_df.columns:
-                        value = edited_df.iloc[0][col]
+                # Add the 6 data columns (REPORTING_AREA through PERTUSSIS_CUMULATIVE_YTD_PREVIOUS_YEAR)
+                for i in range(6):
+                    if i < len(columns) and columns[i] in edited_df.columns:
+                        value = edited_df.iloc[0][columns[i]]
                         escaped_value = str(value).replace("'", "''") if value is not None else None
                         row_values.append(f"'{escaped_value}'" if escaped_value is not None else "NULL")
                     else:
                         row_values.append("NULL")
                 
                 # Add model used (don't include timestamp as it has DEFAULT)
-                row_values.append(f"'{results['model_used']}'")
+                row_values.append(f"'{results['model_used']}'")  # 8. MODEL_USED
+                
+                # Debug: Check we have exactly 8 values
+                st.write(f"Debug: Inserting {len(row_values)} values for persistent save")
                 
                 insert_flattened_sql = f"""
                     INSERT INTO {dest_table} (
