@@ -406,11 +406,16 @@ if uploaded_file is not None:
                                     else:
                                         row_values.append("NULL")
                                 
-                                # Add model used and timestamp
-                                row_values.extend([f"'{selected_model}'", "CURRENT_TIMESTAMP()"])
+                                # Add model used (don't include timestamp as it has DEFAULT)
+                                row_values.append(f"'{selected_model}'")
                                 
                                 insert_flattened_sql = f"""
-                                    INSERT INTO {dest_table} VALUES ({', '.join(row_values)})
+                                    INSERT INTO {dest_table} (
+                                        FILE_NAME, REPORTING_AREA, PERTUSSIS_CURRENT_WEEK, 
+                                        PERTUSSIS_PREVIOUS_52_WEEKS_MAX, PERTUSSIS_PREVIOUS_52_WEEKS_TOTAL,
+                                        PERTUSSIS_CUMULATIVE_YTD_CURRENT_YEAR, PERTUSSIS_CUMULATIVE_YTD_PREVIOUS_YEAR,
+                                        MODEL_USED
+                                    ) VALUES ({', '.join(row_values)})
                                 """
                                 
                                 session.sql(insert_flattened_sql).collect()
@@ -567,11 +572,16 @@ if hasattr(st.session_state, 'processing_results') and st.session_state.processi
                     else:
                         row_values.append("NULL")
                 
-                # Add model used and timestamp
-                row_values.extend([f"'{results['model_used']}'", "CURRENT_TIMESTAMP()"])
+                # Add model used (don't include timestamp as it has DEFAULT)
+                row_values.append(f"'{results['model_used']}'")
                 
                 insert_flattened_sql = f"""
-                    INSERT INTO {dest_table} VALUES ({', '.join(row_values)})
+                    INSERT INTO {dest_table} (
+                        FILE_NAME, REPORTING_AREA, PERTUSSIS_CURRENT_WEEK, 
+                        PERTUSSIS_PREVIOUS_52_WEEKS_MAX, PERTUSSIS_PREVIOUS_52_WEEKS_TOTAL,
+                        PERTUSSIS_CUMULATIVE_YTD_CURRENT_YEAR, PERTUSSIS_CUMULATIVE_YTD_PREVIOUS_YEAR,
+                        MODEL_USED
+                    ) VALUES ({', '.join(row_values)})
                 """
                 
                 session.sql(insert_flattened_sql).collect()
