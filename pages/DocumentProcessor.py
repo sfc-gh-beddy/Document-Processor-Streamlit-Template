@@ -321,27 +321,37 @@ if uploaded_file is not None:
                     
                     if json_data:
                         # Convert to DataFrame for editing
-                        if isinstance(json_data, dict):
-                            # Flatten the JSON for editing
-                            flattened_data = {}
-                            for key, value in json_data.items():
-                                if isinstance(value, (dict, list)):
-                                    flattened_data[key] = str(value)
-                                else:
-                                    flattened_data[key] = value
+                        try:
+                            if isinstance(json_data, dict):
+                                # Flatten the JSON for editing
+                                flattened_data = {}
+                                for key, value in json_data.items():
+                                    if isinstance(value, (dict, list)):
+                                        flattened_data[key] = str(value)
+                                    else:
+                                        flattened_data[key] = value
+                                
+                                edit_df = pd.DataFrame([flattened_data])
+                            elif isinstance(json_data, list):
+                                # Handle list data
+                                edit_df = pd.DataFrame(json_data)
+                            else:
+                                edit_df = pd.DataFrame([{"Raw_Output": str(json_data)}])
                             
-                            edit_df = pd.DataFrame([flattened_data])
-                        else:
-                            edit_df = pd.DataFrame([{"Raw_Output": str(json_data)}])
-                        
-                        # Editable dataframe
-                        st.markdown("### ✏️ Review and Edit Extracted Data")
-                        edited_df = st.data_editor(
-                            edit_df,
-                            use_container_width=True,
-                            hide_index=True,
-                            num_rows="fixed"
-                        )
+                            # Editable dataframe
+                            st.markdown("### ✏️ Review and Edit Extracted Data")
+                            edited_df = st.data_editor(
+                                edit_df,
+                                use_container_width=True,
+                                hide_index=True,
+                                num_rows="fixed"
+                            )
+                        except Exception as e:
+                            st.error(f"Error creating DataFrame: {str(e)}")
+                            st.write("Raw JSON data:")
+                            st.json(json_data)
+                            # Create a fallback simple DataFrame
+                            edited_df = pd.DataFrame([{'data': str(json_data)}])
                         
                         # =============================================================================
                         # SAVE TO FLATTENED TABLE
@@ -467,20 +477,36 @@ if hasattr(st.session_state, 'processing_results') and st.session_state.processi
     
     if json_data:
         # Convert to DataFrame for editing
-        if isinstance(json_data, dict):
-            if 'data' in json_data:
-                df_data = json_data['data']
+        try:
+            if isinstance(json_data, dict):
+                if 'data' in json_data:
+                    df_data = json_data['data']
+                else:
+                    df_data = json_data
+                
+                # If it's a single dict, wrap it in a list
+                if isinstance(df_data, dict):
+                    df_for_editor = pd.DataFrame([df_data])
+                else:
+                    df_for_editor = pd.DataFrame(df_data)
+            elif isinstance(json_data, list):
+                df_for_editor = pd.DataFrame(json_data)
             else:
-                df_data = json_data
-        else:
-            df_data = json_data
-        
-        # Create editable dataframe
-        edited_df = st.data_editor(
-            pd.DataFrame([df_data]) if isinstance(df_data, dict) else pd.DataFrame(df_data),
-            use_container_width=True,
-            num_rows="dynamic"
-        )
+                # If it's not dict or list, create a simple DataFrame
+                df_for_editor = pd.DataFrame([{'data': str(json_data)}])
+            
+            # Create editable dataframe
+            edited_df = st.data_editor(
+                df_for_editor,
+                use_container_width=True,
+                num_rows="dynamic"
+            )
+        except Exception as e:
+            st.error(f"Error creating DataFrame: {str(e)}")
+            st.write("Raw JSON data:")
+            st.json(json_data)
+            # Create a fallback simple DataFrame
+            edited_df = pd.DataFrame([{'data': str(json_data)}])
         
         # =============================================================================
         # SAVE TO FLATTENED TABLE
